@@ -1,0 +1,19 @@
+# виртуальные окружения
+venv/
+.venv/
+env/
+.env
+
+# кэш Python и pytest
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# сгенерированные отчёты и логи проектов
+students/*/reports/
+students/*/data/*.log
+
+# IDE и системные файлы
+.idea/
+.vscode/
+.DS_Store

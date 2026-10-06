@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Магазин — QA621</title>
+  <meta name="description" content="ТЗ: Магазин — каталог, корзина, промокоды и заказы в терминале. Требования, ООП, хранение данных, автотесты, критерии оценки." />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="page-shop">
+  <header class="site-header">
+    <div class="shell nav">
+      <a class="nav-brand" href="index.html">QA621 <span class="dim">/ экзаменационный проект</span></a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Открыть меню"><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">Главная</a></li>
+        <li><a href="shop.html" aria-current="page">Магазин</a></li>
+        <li><a href="validator.html">Валидатор</a></li>
+        <li><a href="submission.html">Как сдавать</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="shell page-title">
+    <p class="kicker">Задание 1</p>
+    <h1>Магазин</h1>
+    <p>
+      Консольное приложение небольшого интернет-магазина: каталог, корзина,
+      промокоды, оформление и отмена заказов, учёт остатков. Данные живут в
+      JSON-файлах между запусками, а набор тестов на pytest доказывает, что
+      всё считается правильно.
+    </p>
+  </div>
+
+  <main class="shell">
+    <div class="prose">
+      <section>
+        <h2>Суть проекта</h2>
+        <p>
+          Товары разных типов по-разному считают стоимость и ограничивают
+          количество, промокоды разных типов по-разному считают скидку.
+          «Оформить заказ» — значит списать товары со склада и записать заказ
+          в JSON; это не веб-сервер и не настоящая оплата.
+        </p>
+        <p>
+          Вторая половина задания — <strong>автотесты на pytest</strong>.
+          Магазин — система, которую вы не только пишете, но и тестируете.
+          Без тестов проект не принимается.
+        </p>
+        <p>
+          Формат запуска — аргументы командной строки (<code>sys.argv</code>
+          или <code>argparse</code>) либо интерактивное меню; выбор описывается
+          в README.
+        </p>
+        <div class="code-block">
+          <div class="tab">пример вызовов</div>
+          <pre><span class="hl">$</span> python main.py catalog --category coffee
+<span class="hl">$</span> python main.py search кофе
+<span class="hl">$</span> python main.py show P003
+<span class="hl">$</span> python main.py cart add P003 2
+<span class="hl">$</span> python main.py cart add P010 0.35
+<span class="hl">$</span> python main.py cart set P003 1
+<span class="hl">$</span> python main.py cart remove P003
+<span class="hl">$</span> python main.py cart show
+<span class="hl">$</span> python main.py promo SALE10
+<span class="hl">$</span> python main.py checkout
+<span class="hl">$</span> python main.py orders
+<span class="hl">$</span> python main.py order 1
+<span class="hl">$</span> python main.py cancel 1
+<span class="hl">$</span> python main.py restock P003 10
+<span class="hl">$</span> python main.py export-orders reports/orders.csv</pre>
+        </div>
+        <p>Названия команд можно адаптировать — набор сценариев ниже должен быть покрыт полностью.</p>
+      </section>
+
+      <section>
+        <h2>Что нужно реализовать</h2>
+        <ol class="reqs">
+          <li><strong>Каталог</strong> — артикул, название, категория, цена, остаток; фильтр по категории.</li>
+          <li><strong>Поиск</strong> — по подстроке в названии, без учёта регистра.</li>
+          <li><strong>Карточка товара</strong> — подробности, включая тип и его особенности («цена за кг», «цифровой»).</li>
+          <li><strong>Корзина</strong> — добавить, изменить количество, убрать, показать: строки, суммы по строкам, сумма без скидки, скидка, итог. Повторное добавление увеличивает количество, а не создаёт вторую строку.</li>
+          <li><strong>Промокод</strong> — один на корзину, новый заменяет старый. Неизвестный код или невыполненное условие — понятное сообщение.</li>
+          <li><strong>Оформление заказа</strong> — проверка остатков по всем позициям, списание, заказ со статусом <code>new</code>, очистка корзины. Не хватает хотя бы одной позиции — заказ не создаётся и склад не меняется вообще.</li>
+          <li><strong>История заказов</strong> — список заказов и просмотр конкретного.</li>
+          <li><strong>Отмена заказа</strong> — статус <code>cancelled</code>, остатки возвращаются на склад; повторная отмена — ошибка.</li>
+          <li><strong>Приход товара</strong> — увеличение остатка.</li>
+          <li><strong>Экспорт</strong> — все заказы в CSV: номер, статус, позиций, сумма, скидка, итог.</li>
+          <li><strong>Журнал действий</strong> — значимые действия пишутся в <code>data/shop.log</code> с помощью декоратора.</li>
+          <li><strong>Обработка ошибок</strong> — неизвестный артикул, количество ≤ 0 или не число, нехватка остатка, неверный промокод, пустая корзина, отсутствующий или битый JSON — понятное сообщение, а не traceback.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Товары и промокоды</h2>
+        <div class="stats">
+          <div class="stat"><div class="n">3+</div><div class="label">типа товаров с разным поведением</div></div>
+          <div class="stat"><div class="n">3+</div><div class="label">типа промокодов</div></div>
+          <div class="stat"><div class="n">10+</div><div class="label">товаров в каталоге</div></div>
+          <div class="stat"><div class="n">3+</div><div class="label">категории</div></div>
+        </div>
+        <h3>Типы товаров</h3>
+        <dl class="dl">
+          <div class="dl-row">
+            <dt>Штучный<span class="code">piece</span></dt>
+            <dd>Количество только целое и не больше остатка.</dd>
+          </div>
+          <div class="dl-row">
+            <dt>Весовой<span class="code">weight</span></dt>
+            <dd>Цена за 1 кг, количество — дробное число килограммов (например, <code>0.35</code>), есть минимальный вес. Сумма строки округляется до копеек.</dd>
+          </div>
+          <div class="dl-row">
+            <dt>Цифровой<span class="code">digital</span></dt>
+            <dd>Склада нет — остаток не проверяется и не списывается. В корзине максимум 1 штука.</dd>
+          </div>
+        </dl>
+        <h3>Типы промокодов</h3>
+        <dl class="dl">
+          <div class="dl-row">
+            <dt>Процент<span class="code">SALE10</span></dt>
+            <dd>−10% от суммы корзины.</dd>
+          </div>
+          <div class="dl-row">
+            <dt>Фикс. от порога<span class="code">MINUS500</span></dt>
+            <dd>−500 ₽, если сумма не меньше 3000 ₽. Итог не может стать отрицательным.</dd>
+          </div>
+          <div class="dl-row">
+            <dt>3 по цене 2<span class="code">COFFEE3</span></dt>
+            <dd>Каждый третий штучный товар категории <code>coffee</code> бесплатно. Альтернатива — скидка только на категорию (<code>TEA15</code>: −15% на чай).</dd>
+          </div>
+        </dl>
+        <p>Можно придумать свои типы — но не меньше трёх и с реально разным поведением.</p>
+      </section>
+
+      <section>
+        <h2>Требования к ООП</h2>
+        <p>Все четыре принципа обязательны и должны присутствовать по существу, а не для галочки.</p>
+        <div class="principles">
+          <div class="principle">
+            <h3>Абстракция</h3>
+            <p><code>Product</code> — абстрактный класс через <code>abc.ABC</code> с методами вроде <code>line_price(qty)</code> и <code>check_qty(qty)</code>. <code>Discount</code> — абстрактный с <code>apply(cart)</code>. Создать их напрямую нельзя.</p>
+          </div>
+          <div class="principle">
+            <h3>Инкапсуляция</h3>
+            <p>Цена и остаток — защищённые <code>_price</code>, <code>_stock</code> за <code>@property</code>. Сеттеры валидируют: цена &gt; 0, остаток ≥ 0. Списать больше, чем есть, нельзя — собственное исключение.</p>
+          </div>
+          <div class="principle">
+            <h3>Наследование</h3>
+            <p><code>PieceProduct</code>, <code>WeightProduct</code>, <code>DigitalProduct</code> — наследники <code>Product</code> с <code>super().__init__()</code>; типы промокодов — наследники <code>Discount</code>.</p>
+          </div>
+          <div class="principle">
+            <h3>Полиморфизм</h3>
+            <p>Корзина зовёт <code>product.line_price(qty)</code> и <code>discount.apply(cart)</code>, не проверяя тип через <code>isinstance</code> или <code>if type == "weight"</code>.</p>
+          </div>
+        </div>
+        <h3>Также обязательно</h3>
+        <ul class="plain">
+          <li><strong>Композиция</strong> — <code>Cart</code> хранит строки и промокод, сервис владеет каталогом, корзиной и заказами.</li>
+          <li><strong>Дандеры</strong> — минимум 2 по делу: <code>__len__</code>, <code>__iter__</code>, <code>__contains__</code>, <code>__bool__</code> у корзины, <code>__str__</code> у заказа.</li>
+          <li><strong>dataclass</strong> — минимум 1: <code>CartItem</code>, <code>Order</code>; <code>asdict()</code> для сохранения.</li>
+          <li><strong>Свои исключения</strong> с общим родителем <code>ShopError</code>: <code>ProductNotFoundError</code>, <code>OutOfStockError</code>, <code>InvalidPromoError</code>, <code>EmptyCartError</code> и т.п. CLI ловит <code>ShopError</code> в одном месте.</li>
+          <li><strong>Декоратор</strong> — например, <code>@log_action</code>, пишущий действия сервиса в <code>data/shop.log</code>.</li>
+          <li><strong>Фабрика из JSON</strong> — промокоды из конфига превращаются в объекты через словарь <code>{"percent": PercentDiscount, ...}</code>, как стенд на практикуме 27-28.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Хранение данных</h2>
+        <p>
+          Три JSON-файла в <code>data/</code>, вся работа с ними — через класс
+          <code>Repository</code>, которому путь передаётся параметром (иначе его
+          не протестировать на временных файлах). Сохранение — после каждого
+          изменяющего действия. Нет <code>orders.json</code> — создаётся пустой;
+          нет или битый каталог/промокоды — понятное сообщение.
+        </p>
+        <div class="code-block">
+          <div class="tab">data/catalog.json</div>
+          <pre>{
+  "products": [
+    {"id": "P001", "type": "piece", "name": "Кружка QA", "category": "merch", "price": 590, "stock": 12},
+    {"id": "P003", "type": "piece", "name": "Кофе в зёрнах 250 г", "category": "coffee", "price": 790, "stock": 8},
+    {"id": "P010", "type": "weight", "name": "Чай улун (на развес)", "category": "tea", "price_per_kg": 2400, "min_kg": 0.1, "stock_kg": 3.5},
+    {"id": "P020", "type": "digital", "name": "Курс «Pytest за выходные»", "category": "courses", "price": 1990}
+  ]
+}</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">data/promos.json — только чтение</div>
+          <pre>{
+  "promos": [
+    {"code": "SALE10", "type": "percent", "percent": 10},
+    {"code": "MINUS500", "type": "fixed", "amount": 500, "min_total": 3000},
+    {"code": "COFFEE3", "type": "three_for_two", "category": "coffee"},
+    {"code": "TEA15", "type": "category_percent", "category": "tea", "percent": 15}
+  ]
+}</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">data/orders.json</div>
+          <pre>{
+  "cart": {
+    "items": [{"product_id": "P003", "qty": 2}, {"product_id": "P010", "qty": 0.35}],
+    "promo": "SALE10"
+  },
+  "orders": [
+    {
+      "id": 1,
+      "items": [{"product_id": "P001", "qty": 1, "price": 590, "line_total": 590}],
+      "subtotal": 590,
+      "discount": 0,
+      "total": 590,
+      "promo": null,
+      "status": "new"
+    }
+  ],
+  "next_order_id": 2
+}</pre>
+        </div>
+        <p>В заказе хранится цена на момент покупки — если цена в каталоге потом изменится, старый заказ не «пересчитается».</p>
+      </section>
+
+      <section>
+        <h2>Автотесты на pytest</h2>
+        <p>Обязательная часть проекта и отдельный критерий оценки. На защите — живой прогон <code>pytest -v</code>.</p>
+        <div class="stats">
+          <div class="stat"><div class="n">15+</div><div class="label">тестов, все зелёные</div></div>
+          <div class="stat"><div class="n">3+</div><div class="label">фикстуры в <code>conftest.py</code></div></div>
+          <div class="stat"><div class="n">1+</div><div class="label">фикстура с <code>tmp_path</code> или <code>yield</code></div></div>
+          <div class="stat"><div class="n">1+</div><div class="label">тест-класс</div></div>
+        </div>
+        <ul class="plain">
+          <li>Структура: <code>tests/</code>, <code>tests/conftest.py</code>, в корне <code>pytest.ini</code> с <code>pythonpath = .</code> — как на занятии 29-30.</li>
+          <li>Тесты <strong>не трогают</strong> настоящие <code>data/*.json</code> — только временные файлы.</li>
+          <li><code>pytest.raises</code> — на каждое собственное исключение.</li>
+          <li>Покрыть: стоимость строки для каждого типа товара (включая округление у весового); ограничения количества для каждого типа; каждый промокод, включая «порог не выполнен»; оформление уменьшает остатки, а при нехватке не меняет склад вообще; отмена возвращает остатки; <code>Repository</code> — сохранили, загрузили, совпало, а битый JSON даёт своё исключение.</li>
+          <li>Имена говорят, что проверяется: <code>test_weight_product_rounds_line_price_to_kopecks</code>, а не <code>test_1</code>.</li>
+          <li><code>parametrize</code>, маркеры и HTML-отчёты не требуются — но приветствуются.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Рекомендуемая структура проекта</h2>
+        <p>Разбиение на файлы — рекомендация. Но модель, хранение, бизнес-логика и CLI разделены, а в модели нет <code>print()</code> и <code>input()</code>.</p>
+        <div class="code-block">
+          <div class="tab">students/ivanov_ivan/</div>
+          <pre>main.py                  # разбор команд, вывод, перехват ShopError
+shop/
+  __init__.py
+  products.py            # Product (ABC) и типы товаров
+  discounts.py           # Discount (ABC), промокоды, фабрика
+  cart.py                # CartItem, Cart
+  orders.py              # Order
+  service.py             # ShopService: бизнес-логика, @log_action
+  repository.py          # чтение/запись JSON
+  exceptions.py          # ShopError и наследники
+  decorators.py          # log_action
+data/
+  catalog.json  promos.json  orders.json
+tests/
+  conftest.py            # общие фикстуры
+  test_products.py  test_cart.py  test_discounts.py
+  test_service.py   test_repository.py
+pytest.ini               # [pytest] pythonpath = .
+requirements.txt         # pytest
+README.md</pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>Нефункциональные требования</h2>
+        <ul class="plain">
+          <li>Python 3.10+.</li>
+          <li>Никаких падений с необработанным исключением при обычных сценариях и некорректном вводе.</li>
+          <li>Деньги — с двумя знаками после запятой.</li>
+          <li>Сообщения на русском или английском, но единообразно.</li>
+          <li>README: формат запуска, команды с примерами, типы товаров и промокодов, как запустить тесты.</li>
+          <li><code>requirements.txt</code> с <code>pytest</code>; <code>rich</code>/<code>colorama</code> — по желанию.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Примерный план</h2>
+        <dl class="dl">
+          <div class="dl-row"><dt>6–7 окт</dt><dd>Проектирование классов, структура папок, заполнить каталог и промокоды.</dd></div>
+          <div class="dl-row"><dt>8–10 окт</dt><dd><code>Product</code> и типы товаров, <code>Cart</code> с дандерами — и сразу первые тесты.</dd></div>
+          <div class="dl-row"><dt>11–13 окт</dt><dd><code>Discount</code>, промокоды, фабрика из JSON; тесты на каждый промокод.</dd></div>
+          <div class="dl-row"><dt>14–16 окт</dt><dd><code>Repository</code>, сервис (оформление, отмена, приход), исключения; тесты с <code>tmp_path</code>.</dd></div>
+          <div class="dl-row"><dt>17–19 окт</dt><dd>CLI, экспорт в CSV, декоратор-логгер, обработка ошибок, README.</dd></div>
+          <div class="dl-row"><dt>20–21 окт</dt><dd>Прогнать сценарии руками и <code>pytest -v</code>, открыть PR, подготовиться к защите.</dd></div>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Критерии оценки на защите</h2>
+        <div class="table-wrap">
+          <table class="criteria">
+            <thead>
+              <tr><th>Критерий</th><th>Вес</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Все 4 принципа ООП присутствуют по существу и осмысленно</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Полиморфный расчёт суммы и скидок без <code>isinstance</code> и ветвления по типу</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Реализованы все сценарии, данные соответствуют минимумам</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Автотесты выполняют требования и проверяют поведение, а не «что-то»</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Корректная работа JSON-хранилища (сохранение / загрузка / устойчивость к ошибкам)</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Свои исключения, декоратор, dataclass, дандеры используются по делу</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Обработка ошибок и понятные сообщения пользователю</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Структура проекта, читаемость кода, README, история коммитов</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Студент может объяснить свой код и обосновать архитектурные решения</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Идеи для дополнительных баллов</h2>
+        <ul class="plain">
+          <li><code>@pytest.mark.parametrize</code> для тестов промокодов и типов товаров.</li>
+          <li>Несколько промокодов одновременно с правилами совместимости.</li>
+          <li>Отчёт по продажам: выручка по категориям, самый продаваемый товар, средний чек.</li>
+          <li>Статусы заказа <code>new → paid → shipped</code> с проверкой допустимых переходов.</li>
+          <li>Атомарная запись JSON — во временный файл и переименование.</li>
+          <li>Цветной вывод в терминале.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="cta-footer">
+      <p>Сдача — через pull request с заголовком <code>Фамилия Имя — Магазин</code>. PR — до <strong>21 октября</strong>, защита — <strong>22 октября 2026</strong>.</p>
+      <a class="btn" href="submission.html">Как сдавать работу</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell row">
+      <span>QA621, экзаменационный проект</span>
+      <a href="https://github.com/ZakharMarinin/QA621-Final-Project" target="_blank" rel="noopener">Репозиторий курса на GitHub</a>
+    </div>
+  </footer>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>

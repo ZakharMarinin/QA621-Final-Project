@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QA621 — экзаменационный проект</title>
+  <meta name="description" content="Два варианта экзаменационного проекта курса QA621: Магазин и Валидатор. Выберите один, реализуйте на Python с тестами на pytest и сдайте через pull request." />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell nav">
+      <a class="nav-brand" href="index.html">QA621 <span class="dim">/ экзаменационный проект</span></a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Открыть меню"><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" aria-current="page">Главная</a></li>
+        <li><a href="shop.html">Магазин</a></li>
+        <li><a href="validator.html">Валидатор</a></li>
+        <li><a href="submission.html">Как сдавать</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <section class="hero shell">
+    <div class="terminal" role="img" aria-label="Терминал: ls projects/ выводит shop и data-validator, pytest -q сообщает, что все тесты прошли, затем cat README.md">
+      <div class="line"><span class="prompt">$ </span><span class="type-cmd" style="--n:12; --d:0.15s">ls projects/</span></div>
+      <div class="line type-out" style="--d:0.85s"><span class="out">shop/    data-validator/</span></div>
+      <div class="line">&nbsp;</div>
+      <div class="line"><span class="prompt">$ </span><span class="type-cmd" style="--n:9; --d:1.25s">pytest -q</span></div>
+      <div class="line type-out" style="--d:1.95s"><span class="pass">......................</span><span class="out"> 22 passed in 0.14s</span></div>
+      <div class="line">&nbsp;</div>
+      <div class="line"><span class="prompt">$ </span><span class="type-cmd" style="--n:13; --d:2.35s">cat README.md</span><span class="caret" style="--d:2.95s"></span></div>
+    </div>
+
+    <h1>Одно приложение на Python, тесты к нему — и защита на экзамене.</h1>
+    <p>
+      Ниже — два варианта экзаменационного проекта. Выберите один, напишите
+      консольное приложение с полноценным ООП и работой с файлами, покройте
+      его тестами на pytest и сдайте через pull request в репозиторий курса.
+    </p>
+  </section>
+
+  <main class="shell">
+    <div class="grid-2">
+      <a class="card shop" href="shop.html">
+        <h3>Магазин</h3>
+        <p class="tagline">Каталог, корзина, промокоды и заказы в терминале</p>
+        <p>
+          Товары трёх типов по-разному считают стоимость, промокоды — скидку.
+          Оформление заказа списывает остатки, отмена возвращает. А тесты
+          доказывают, что касса не ошибается ни на копейку.
+        </p>
+        <div class="receipt" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <span class="go">Открыть задание</span>
+        <div class="meta">3 типа товаров, 3 типа промокодов, склад в JSON, от 15 тестов</div>
+      </a>
+
+      <a class="card validator" href="validator.html">
+        <h3>Валидатор</h3>
+        <p class="tagline">Проверка тестовых данных по правилам из конфига</p>
+        <p>
+          QA-инструмент: берёт CSV или JSON с тестовыми данными, прогоняет
+          каждую запись по правилам из <code>rules.json</code> и выдаёт отчёт
+          о нарушениях — в консоль, CSV, JSON или Markdown.
+        </p>
+        <div class="checks" aria-hidden="true">
+          <span></span><span></span><span></span><span class="bad"></span><span></span><span></span><span></span><span class="bad"></span><span></span><span></span>
+        </div>
+        <span class="go">Открыть задание</span>
+        <div class="meta">7 правил, 4 формата отчёта, коды выхода для CI, от 20 тестов</div>
+      </a>
+    </div>
+
+    <div class="cta-footer">
+      <p>Оба задания сдаются одинаково — fork, ветка, коммиты, pull request. PR — до <strong>21 октября</strong>, защита — <strong>22 октября 2026</strong>.</p>
+      <a class="btn" href="submission.html">Как сдавать работу</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell row">
+      <span>QA621, экзаменационный проект</span>
+      <a href="https://github.com/ZakharMarinin/QA621-Final-Project" target="_blank" rel="noopener">Репозиторий курса на GitHub</a>
+    </div>
+  </footer>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Валидатор — QA621</title>
+  <meta name="description" content="ТЗ: Валидатор — проверка тестовых данных CSV/JSON по правилам из конфига. Требования, ООП, отчёты, автотесты, критерии оценки." />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="page-validator">
+  <header class="site-header">
+    <div class="shell nav">
+      <a class="nav-brand" href="index.html">QA621 <span class="dim">/ экзаменационный проект</span></a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Открыть меню"><span></span></button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html">Главная</a></li>
+        <li><a href="shop.html">Магазин</a></li>
+        <li><a href="validator.html" aria-current="page">Валидатор</a></li>
+        <li><a href="submission.html">Как сдавать</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="shell page-title">
+    <p class="kicker">Задание 2</p>
+    <h1>Валидатор</h1>
+    <p>
+      Консольный QA-инструмент: проверяет файл с тестовыми данными (CSV или
+      JSON) по правилам из отдельного JSON-конфига и сохраняет отчёт о
+      нарушениях. Плюс набор тестов на pytest — на сам валидатор.
+    </p>
+  </div>
+
+  <main class="shell">
+    <div class="prose">
+      <section>
+        <h2>Суть проекта</h2>
+        <p>
+          Прежде чем заливать тестовые данные на стенд или гонять на них
+          автотесты, их проверяют — иначе тест падает не из-за бага в продукте,
+          а из-за кривого <code>age = "abc"</code> в фикстуре. Валидатор делает
+          именно это: обязательные поля, типы, диапазоны, длина, email,
+          допустимые значения, уникальность.
+        </p>
+        <p>
+          Ключевая идея: <strong>правила — это данные, а не код</strong>. Чтобы
+          проверить новый файл, пишут новый <code>rules.json</code>, а не правят
+          Python. Вторая половина задания — <strong>автотесты на pytest</strong>;
+          без них проект не принимается.
+        </p>
+        <div class="code-block">
+          <div class="tab">пример вызовов</div>
+          <pre><span class="hl">$</span> python main.py check data/users.csv --rules rules/users.json
+<span class="hl">$</span> python main.py check data/users.csv --rules rules/users.json --report md
+<span class="hl">$</span> python main.py check data/orders.json --rules rules/orders.json --report csv
+<span class="hl">$</span> python main.py rules</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">пример вывода</div>
+          <pre><span class="hl">$</span> python main.py check data/users.csv --rules rules/users.json --report md
+Проверка data/users.csv по правилам rules/users.json
+
+Запись 2  email   email     'boris@example' — некорректный email
+Запись 3  name    required  обязательное поле пустое
+Запись 3  age     range     17 вне диапазона 18..120
+Запись 4  id      unique    '2' уже встречался в записи 2
+Запись 4  role    one_of    'manager' нет в списке: guest, tester, admin
+Запись 5  age     type      'abc' — ожидали int
+Запись 6  email   unique    'anna@example.com' уже встречался в записи 1
+
+<span class="hl">Итого: записей 6, без ошибок 1, с ошибками 5, нарушений 7</span>
+Отчёт сохранён: reports/users_report.md</pre>
+        </div>
+        <p>Точный формат вывода — на ваше усмотрение; номер записи, поле, правило, сообщение и сводка — обязательны. Интерактивное меню здесь не подходит: такие утилиты запускают из скриптов и CI.</p>
+      </section>
+
+      <section>
+        <h2>Что нужно реализовать</h2>
+        <ol class="reqs">
+          <li><strong>Загрузка данных</strong> — CSV с заголовком или JSON-список объектов, формат по расширению. Дальше валидатор работает одинаково с любым форматом.</li>
+          <li><strong>Загрузка правил</strong> — JSON-конфиг превращается в объекты правил и проверяется <em>до</em> прогона: неизвестное правило, нет параметра, <code>min &gt; max</code> — ошибка с указанием поля и правила.</li>
+          <li><strong>Прогон</strong> — каждая запись проверяется правилами своих полей; нарушение — объект с номером записи, полем, правилом, значением и сообщением.</li>
+          <li><strong>Пустые значения</strong> — проверяет только <code>required</code>, остальные правила их пропускают. Иначе одно пустое поле даст пять одинаковых ошибок.</li>
+          <li><strong>Сводка</strong> — всего записей, без ошибок, с ошибками, нарушений; количество по каждому правилу и по каждому полю.</li>
+          <li><strong>Отчёты</strong> — <code>console</code> (по умолчанию), <code>csv</code>, <code>json</code>, <code>md</code>. Файлы — в <code>reports/</code>, папка создаётся сама.</li>
+          <li><strong>Список правил</strong> — команда <code>rules</code> печатает правила и параметры из того же реестра, что использует фабрика.</li>
+          <li><strong>Код выхода</strong> — <code>0</code> нарушений нет, <code>1</code> есть нарушения, <code>2</code> ошибка запуска (файл, конфиг, аргументы). Так утилиту можно встроить в CI.</li>
+          <li><strong>Замер времени</strong> — время проверки в сводке, через декоратор.</li>
+          <li><strong>Обработка ошибок</strong> — нет файла, битый CSV/JSON, JSON не список, неизвестный формат, ошибка в конфиге, неизвестный тип отчёта — понятное сообщение и код <code>2</code>, а не traceback.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Правила и данные</h2>
+        <div class="stats">
+          <div class="stat"><div class="n">7+</div><div class="label">правил проверки</div></div>
+          <div class="stat"><div class="n">4</div><div class="label">формата отчёта</div></div>
+          <div class="stat"><div class="n">2+</div><div class="label">своих набора данных (CSV и JSON)</div></div>
+          <div class="stat"><div class="n">20+</div><div class="label">записей в каждом, из них 5+ с ошибками</div></div>
+        </div>
+        <dl class="dl">
+          <div class="dl-row"><dt>Обязательное<span class="code">required</span></dt><dd>Значение пустое или поля нет вовсе.</dd></div>
+          <div class="dl-row"><dt>Тип<span class="code">type: int|float|bool|str</span></dt><dd>Значение нельзя интерпретировать как тип. В CSV всё — строки: <code>"42"</code> — корректный <code>int</code>.</dd></div>
+          <div class="dl-row"><dt>Диапазон<span class="code">range: min, max</span></dt><dd>Число вне диапазона. Можно задать только одну границу.</dd></div>
+          <div class="dl-row"><dt>Длина<span class="code">length: min, max</span></dt><dd>Длина строки вне диапазона.</dd></div>
+          <div class="dl-row"><dt>Email<span class="code">email</span></dt><dd>Ровно одна <code>@</code>, непустая часть до неё, в домене точка не в начале и не в конце, без пробелов. Строковыми методами, без <code>re</code>.</dd></div>
+          <div class="dl-row"><dt>Из списка<span class="code">one_of: values</span></dt><dd>Значения нет в списке допустимых.</dd></div>
+          <div class="dl-row"><dt>Уникальность<span class="code">unique</span></dt><dd>Значение уже встречалось в этом поле. Правило помнит, что видело, и сообщает, где было первое вхождение.</dd></div>
+        </dl>
+        <p>
+          В двух своих наборах данных ошибки заложены так, чтобы каждое правило
+          сработало хотя бы раз. В README для каждого набора указано, сколько
+          и каких нарушений ожидается — это и документация, и основа
+          интеграционного теста.
+        </p>
+      </section>
+
+      <section>
+        <h2>Требования к ООП</h2>
+        <p>Все четыре принципа обязательны и должны присутствовать по существу, а не для галочки.</p>
+        <div class="principles">
+          <div class="principle">
+            <h3>Абстракция</h3>
+            <p><code>Rule</code> — абстрактный класс через <code>abc.ABC</code> с <code>check(value, record_no)</code>, возвращающим нарушение или <code>None</code>. Так же абстрактные <code>DataLoader</code> (<code>load(path)</code>) и <code>Reporter</code>.</p>
+          </div>
+          <div class="principle">
+            <h3>Инкапсуляция</h3>
+            <p>Параметры правила проверяются при создании (<code>min ≤ max</code>, непустой <code>values</code>, известный <code>type</code>) и доступны только на чтение через <code>@property</code>. Память <code>unique</code> спрятана внутри правила.</p>
+          </div>
+          <div class="principle">
+            <h3>Наследование</h3>
+            <p>Каждое правило — наследник <code>Rule</code>; <code>CsvLoader</code>/<code>JsonLoader</code> — наследники <code>DataLoader</code>; четыре репортера — наследники <code>Reporter</code>. Общая логика — в родителе.</p>
+          </div>
+          <div class="principle">
+            <h3>Полиморфизм</h3>
+            <p><code>Validator</code> вызывает <code>rule.check(...)</code> одинаково для любого правила — без <code>if rule.name == "range"</code> и <code>isinstance</code>. Загрузчик и репортер выбираются через словарь «имя → класс».</p>
+          </div>
+        </div>
+        <h3>Также обязательно</h3>
+        <ul class="plain">
+          <li><strong>Фабрика правил</strong> — реестр <code>{"required": RequiredRule, "range": RangeRule, ...}</code> превращает конфиг в объекты, как стенд на практикуме 27-28.</li>
+          <li><strong>dataclass</strong> — <code>Violation(record_no, field, rule, value, message)</code> с <code>frozen=True, order=True</code>: неизменяемое и сортируется по номеру записи.</li>
+          <li><strong>Дандеры</strong> — минимум 2 по делу: <code>__str__</code> у нарушения, <code>__len__</code>/<code>__iter__</code>/<code>__bool__</code> у результата, <code>__repr__</code> у правил.</li>
+          <li><strong>Свои исключения</strong> с общим родителем <code>ValidatorError</code>: <code>DataFileError</code>, <code>ConfigError</code>, <code>ReportError</code>. <code>main.py</code> ловит их в одном месте и выходит с кодом <code>2</code>.</li>
+          <li><strong>Декоратор</strong> — <code>@timed</code> для замера проверки или <code>@log_run</code>, пишущий строку о каждом запуске в <code>reports/runs.log</code>.</li>
+          <li><strong>Пакет</strong> — модули внутри пакета с <code>__init__.py</code>, в <code>main.py</code> — <code>if __name__ == "__main__":</code>.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Входные данные и конфиги</h2>
+        <div class="code-block">
+          <div class="tab">data/users.csv</div>
+          <pre>id,name,email,age,role
+1,Анна,anna@example.com,25,tester
+2,Борис,boris@example,31,admin
+3,,vika@example.com,17,tester
+2,Олег,oleg@example.com,40,manager
+5,Ия,iya@example.com,abc,guest
+6,Пётр,anna@example.com,29,tester</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">rules/users.json</div>
+          <pre>{
+  "dataset": "users",
+  "fields": {
+    "id":    [{"rule": "required"}, {"rule": "type", "type": "int"}, {"rule": "unique"}],
+    "name":  [{"rule": "required"}, {"rule": "length", "min": 2, "max": 50}],
+    "email": [{"rule": "required"}, {"rule": "email"}, {"rule": "unique"}],
+    "age":   [{"rule": "type", "type": "int"}, {"rule": "range", "min": 18, "max": 120}],
+    "role":  [{"rule": "one_of", "values": ["guest", "tester", "admin"]}]
+  }
+}</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">data/orders.json — JSON-набор: список объектов</div>
+          <pre>[
+  {"order_id": "A-100", "user_id": 1, "amount": 1590.0, "status": "paid", "promo": null},
+  {"order_id": "A-101", "user_id": 2, "amount": -10, "status": "paid", "promo": "SALE10"},
+  {"order_id": "A-101", "user_id": null, "amount": 300, "status": "lost", "promo": ""}
+]</pre>
+        </div>
+        <div class="code-block">
+          <div class="tab">reports/users_report.json</div>
+          <pre>{
+  "source": "data/users.csv",
+  "rules": "rules/users.json",
+  "summary": {
+    "records": 6, "valid": 1, "invalid": 5, "violations": 7,
+    "by_rule": {"unique": 2, "email": 1, "required": 1, "range": 1, "one_of": 1, "type": 1},
+    "by_field": {"email": 2, "age": 2, "name": 1, "id": 1, "role": 1}
+  },
+  "violations": [
+    {"record_no": 2, "field": "email", "rule": "email", "value": "boris@example", "message": "некорректный email"}
+  ]
+}</pre>
+        </div>
+        <p>
+          Номер записи — порядковый, с 1, заголовок CSV не считается. Вся работа
+          с файлами — в загрузчиках, загрузчике конфига и репортерах: в правилах
+          и <code>Validator</code> нет ни одного <code>open()</code>. Пути передаются
+          параметрами, иначе их не протестировать на временных файлах.
+        </p>
+      </section>
+
+      <section>
+        <h2>Автотесты на pytest</h2>
+        <p>Обязательная часть проекта и отдельный критерий оценки. На защите — живой прогон <code>pytest -v</code>.</p>
+        <div class="stats">
+          <div class="stat"><div class="n">20+</div><div class="label">тестов, все зелёные</div></div>
+          <div class="stat"><div class="n">3+</div><div class="label">фикстуры в <code>conftest.py</code></div></div>
+          <div class="stat"><div class="n">1+</div><div class="label">фикстура с <code>tmp_path</code> или <code>yield</code></div></div>
+          <div class="stat"><div class="n">1+</div><div class="label">тест-класс</div></div>
+        </div>
+        <ul class="plain">
+          <li>Структура: <code>tests/</code>, <code>tests/conftest.py</code>, в корне <code>pytest.ini</code> с <code>pythonpath = .</code> — как на занятии 29-30.</li>
+          <li>Каждое правило — минимум «корректное проходит» и «некорректное ловится»; у <code>range</code>/<code>length</code> — граничные значения.</li>
+          <li><code>unique</code> — повтор ловится, в сообщении номер первой записи. Пустые значения пропускаются всеми правилами, кроме <code>required</code>.</li>
+          <li>Загрузчики — на временных файлах, включая битый файл. Фабрика — корректный конфиг даёт нужные классы, некорректный — <code>ConfigError</code>.</li>
+          <li>Хотя бы один репортер пишет файл с правильным содержимым (например, CSV читается обратно <code>csv.DictReader</code>).</li>
+          <li><strong>Интеграционный тест</strong>: на вашем наборе из <code>data/</code> ровно столько нарушений, сколько заявлено в README.</li>
+          <li><code>pytest.raises</code> — на каждое собственное исключение. Имена тестов говорят, что проверяется: <code>test_range_rule_accepts_exact_max</code>.</li>
+          <li><code>parametrize</code>, маркеры и HTML-отчёты не требуются — но приветствуются.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Рекомендуемая структура проекта</h2>
+        <p>Разбиение на файлы — рекомендация. Но правила, загрузка, прогон, отчёты и CLI разделены, а правила и <code>Validator</code> ничего не печатают.</p>
+        <div class="code-block">
+          <div class="tab">students/ivanov_ivan/</div>
+          <pre>main.py                  # аргументы, вызов валидатора, код выхода
+validator/
+  __init__.py
+  rules.py               # Rule (ABC), все правила, реестр RULES
+  config.py              # rules.json -> правила по полям
+  loaders.py             # DataLoader (ABC), CsvLoader, JsonLoader
+  core.py                # Violation, Result, Validator
+  reporters.py           # Reporter (ABC) и 4 репортера
+  exceptions.py          # ValidatorError и наследники
+  decorators.py          # timed / log_run
+data/
+  users.csv  orders.json
+rules/
+  users.json  orders.json
+tests/
+  conftest.py
+  test_rules.py  test_config.py  test_loaders.py
+  test_reporters.py  test_validator.py
+pytest.ini               # [pytest] pythonpath = .
+requirements.txt         # pytest
+README.md</pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>Нефункциональные требования</h2>
+        <ul class="plain">
+          <li>Python 3.10+, только стандартная библиотека (+ <code>pytest</code> для тестов).</li>
+          <li>Никаких traceback при некорректных аргументах, файлах и конфигах.</li>
+          <li>Сообщения на русском или английском, но единообразно.</li>
+          <li>README: запуск, все правила и их параметры, формат конфига, свои наборы данных с ожидаемым числом нарушений, коды выхода, как запустить тесты.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Примерный план</h2>
+        <dl class="dl">
+          <div class="dl-row"><dt>6–7 окт</dt><dd>Проектирование классов и формата конфига; два набора данных с заложенными ошибками и подсчётом, сколько их.</dd></div>
+          <div class="dl-row"><dt>8–10 окт</dt><dd><code>Rule</code> и все 7 правил, <code>Violation</code> — и сразу тесты на каждое правило.</dd></div>
+          <div class="dl-row"><dt>11–13 окт</dt><dd>Загрузчики CSV/JSON, загрузка конфига и фабрика, свои исключения; тесты с <code>tmp_path</code>.</dd></div>
+          <div class="dl-row"><dt>14–16 окт</dt><dd><code>Validator</code>, сводка, консольный вывод, <code>main.py</code> с кодами выхода, декоратор.</dd></div>
+          <div class="dl-row"><dt>17–19 окт</dt><dd>Репортеры CSV/JSON/Markdown, команда <code>rules</code>, интеграционный тест, README.</dd></div>
+          <div class="dl-row"><dt>20–21 окт</dt><dd>Прогнать сценарии руками (включая битые файлы и конфиги) и <code>pytest -v</code>, открыть PR.</dd></div>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Критерии оценки на защите</h2>
+        <div class="table-wrap">
+          <table class="criteria">
+            <thead>
+              <tr><th>Критерий</th><th>Вес</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Все 4 принципа ООП присутствуют по существу и осмысленно</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Полиморфный прогон правил, выбор загрузчика и репортера без <code>if/elif</code> по типу</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Реализованы все сценарии, правила и данные соответствуют минимумам</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Автотесты выполняют требования и проверяют поведение, а не «что-то»</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+              <tr><td>Конфиг проверяется заранее, ошибки в нём понятны пользователю</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Свои исключения, декоратор, dataclass, дандеры используются по делу</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Обработка ошибок и коды выхода</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Структура проекта, читаемость кода, README, история коммитов</td><td class="weight"><span class="dots" aria-hidden="true">●●○</span>средний</td></tr>
+              <tr><td>Студент может объяснить свой код и обосновать архитектурные решения</td><td class="weight"><span class="dots" aria-hidden="true">●●●</span>высокий</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Идеи для дополнительных баллов</h2>
+        <ul class="plain">
+          <li><code>@pytest.mark.parametrize</code> для тестов правил.</li>
+          <li>Свои правила: <code>date</code>, <code>not_in</code>, <code>starts_with</code>, сравнение двух полей записи.</li>
+          <li>Флаги <code>--fail-fast</code> и <code>--only email,age</code>.</li>
+          <li>Поиск «лишних» полей, которых нет в конфиге.</li>
+          <li>Генератор «чистых» тестовых данных по тому же конфигу — привет практикуму 19-20.</li>
+          <li>Цветной вывод в терминале.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="cta-footer">
+      <p>Сдача — через pull request с заголовком <code>Фамилия Имя — Валидатор</code>. PR — до <strong>21 октября</strong>, защита — <strong>22 октября 2026</strong>.</p>
+      <a class="btn" href="submission.html">Как сдавать работу</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell row">
+      <span>QA621, экзаменационный проект</span>
+      <a href="https://github.com/ZakharMarinin/QA621-Final-Project" target="_blank" rel="noopener">Репозиторий курса на GitHub</a>
+    </div>
+  </footer>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
