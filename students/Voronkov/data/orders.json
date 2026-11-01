@@ -1,0 +1,12 @@
+{
+  "cart": {
+    "items": [],
+    "promo": null
+  },
+  "orders": [
+    {
+      "id": 1,
+      "items": [
+        {
+          "product_id": "P001",
+          "qty": 

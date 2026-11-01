@@ -1,0 +1,32 @@
+{
+  "products": [
+    {
+      "id": "P001",
+      "name": "Кружка QA",
+      "category": "merch",
+      "price": "590",
+      "stock": "10"
+    },
+    {
+      "id": "P003",
+      "name": "Кофе в зёрнах 250 г",
+      "category": "coffee",
+      "price": "790",
+      "stock": "8"
+    },
+    {
+      "id": "P010",
+      "name": "Чай улун (на развес)",
+      "category": "P010",
+      "price": "2400",
+      "stock": "3.5"
+    },
+    {
+      "id": "P020",
+      "name": "Курс «Pytest за выходные»",
+      "category": "courses",
+      "price": "1990",
+      "stock": null
+    }
+  ]
+}
